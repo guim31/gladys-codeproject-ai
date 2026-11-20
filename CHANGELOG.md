@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-20
+
 ### Added
 
 - Local object detection with CodeProject.AI Server on up to four cameras
@@ -30,3 +32,6 @@ the notes of the version's GitHub Release.
 - "Check the connection" action: the server version, its modules, the faces
   registered, one analysis per camera.
 - English, French, German and Spanish.
+
+[Unreleased]: https://github.com/guim31/gladys-codeproject-ai/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/guim31/gladys-codeproject-ai/releases/tag/v1.0.0
