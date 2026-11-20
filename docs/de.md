@@ -1,0 +1,161 @@
+# CodeProject.AI
+
+Bringt die **lokale Objekterkennung und Gesichtserkennung** von
+[CodeProject.AI Server](https://www.codeproject.com/ai) zu den Bildern deiner Kameras: Gladys weiß, ob
+eine Person, ein Auto, ein Hund… im Bild ist, wie viele, wer es ist, wenn du sein Gesicht gespeichert
+hast, und zeigt das Bild mit den eingezeichneten Rahmen. Alles bleibt zu Hause: keine Cloud, kein
+Konto. CodeProject.AI analysiert ein Bild nach dem anderen; es ist kein Videorekorder (dafür gibt es
+Frigate oder Viseron).
+
+Getestet mit einem echten CodeProject.AI Server in Docker (`codeproject/ai-server` 2.9.7, CPU, Module
+Object Detection YOLOv5 6.2 und Face Processing) mit freien Fotos (eine Straße mit Passanten und
+Autos, ein Auto, ein Porträt), noch nicht mit echten Kameras im Betrieb: Rückmeldungen sind auf
+[GitHub](https://github.com/guim31/gladys-codeproject-ai/issues) oder im Gladys-Forum willkommen.
+
+## Voraussetzungen
+
+- Gladys 5.1 oder neuer.
+- Ein CodeProject.AI Server (Docker-Image `codeproject/ai-server` oder der Windows-/Linux-Installer),
+  von Gladys aus über seinen Port erreichbar (standardmäßig 32168), mit einem gestarteten Modul zur
+  **Objekterkennung** (Object Detection YOLOv5 6.2 ist vorinstalliert). Für Gesichter das Modul **Face
+  Processing**.
+- Für jede Kamera die Adresse eines **JPEG-Schnappschusses** (die meisten IP-Kameras haben eine, z. B.
+  `http://benutzer:passwort@192.168.1.30/snapshot.jpg`; Frigate, go2rtc, Shinobi, Blue Iris… liefern
+  eine pro Kamera). RTSP-Streams werden nicht gelesen: Dafür bräuchte die Integration ffmpeg.
+
+Eine Integration kann das Bild einer Kamera, die schon in Gladys ist, nicht lesen (externe
+Integrationen haben diesen Zugriff nicht): Gib die Schnappschuss-Adresse der Kamera selbst an.
+
+## Installation
+
+1. Starte CodeProject.AI, zum Beispiel:
+   `docker run -d --restart unless-stopped -p 32168:32168 codeproject/ai-server`.
+2. In Gladys **Integrationen → Von GitHub installieren**, Adresse
+   `https://github.com/guim31/gladys-codeproject-ai`.
+3. Gib in der Konfiguration die **CodeProject.AI-Adresse** ein, dann für jede Kamera (bis zu vier)
+   einen **Name** und eine **Bildadresse**.
+4. Starte die Aktion **Verbindung prüfen**: Diese listet die laufenden Module auf und analysiert jede
+   Kamera einmal.
+5. Öffne den Tab **Entdecken** und füge die Geräte hinzu: eines pro Kamera und eines für den Server.
+
+Einstellungen:
+
+- **Gesuchte Objekte**: Objekt-Labels auf Englisch, durch Kommas getrennt: `person`, `car`, `truck`,
+  `bicycle`, `motorcycle`, `cat`, `dog`, `bird`… (die 80 COCO-Labels der Standardmodelle). `*` behält
+  alle Labels. Jede Kamera kann ihre eigene Liste in **Objekte (optional)** haben.
+- **Mindestkonfidenz**: Erkennungen darunter werden ignoriert. Eine Kamera kann ihre eigene in
+  **Konfidenz in % (optional)** haben.
+- **Analyseintervall**: wie oft jede hinzugefügte Kamera analysiert wird, eine nach der anderen. **Nur
+  auf Anfrage** analysiert nichts von selbst (Szenenaktion, Widget-Schaltfläche, von Gladys
+  angefordertes Bild).
+- **Gesichtserkennung**: Ist eine Person im Bild, fragt zusätzlich das Modul Face Processing, wer es
+  ist. Fügt jeder Kamera eine Funktion **Erkanntes Gesicht** hinzu (öffne den Tab Entdecken erneut und
+  aktualisiere die Geräte).
+- **Sprache der Namen**: Namen der Funktionen, Objekte und Szenentexte.
+
+**CPU-Last**: Jede Analyse lädt ein Bild hoch und lässt das Modell auf dem CodeProject.AI-Rechner
+laufen (etwa 0,7 s auf einer CPU für YOLOv5 6.2, plus 0,5 s für die Gesichter, wenn eine Person im
+Bild ist). Mit vier Kameras alle 10 Sekunden ist ein kleiner Rechner ständig beschäftigt; 1 Minute ist
+ein guter Anfang. Nichts verlässt dein Netzwerk.
+
+## Gesichter speichern
+
+Die Gesichtserkennung kennt nur die auf deinem Server gespeicherten Gesichter. Mit der Aktion
+**Gesicht speichern**: Stell dich allein und nah genug vor eine hinzugefügte Kamera, wähle die Kamera,
+gib den Namen ein und starte. Das Gesicht im aktuellen Bild wird unter diesem Namen auf dem
+CodeProject.AI-Server gespeichert (nicht in Gladys). Speichere eine Person mehrmals (anderes Licht,
+andere Winkel), damit die Erkennung zuverlässiger wird. **Verbindung prüfen** listet die gespeicherten
+Namen auf; **Gesicht löschen** vergisst alle Bilder eines Namens.
+
+## Die Geräte in Gladys
+
+Ein Gerät pro Kamera, mit:
+
+- **Bild**: das zuletzt analysierte Bild mit den eingezeichneten Rahmen (rot: Person, gelb: andere
+  Objekte, grün: erkanntes Gesicht, blau: unbekanntes Gesicht), für Gladys verkleinert.
+- **Objekt erkannt**: eines der gesuchten Objekte ist im Bild (Ja/Nein).
+- **Erkannte Objekte**: was im Bild ist, z. B. „Person ×2, Auto“, oder „Keine“.
+- **Erkanntes Gesicht** (Gesichtserkennung an): die erkannten Namen, „Unbekannt“ für einen Fremden,
+  oder „Keine“.
+- Ein Zähler pro gesuchtem Label, z. B. **Person (Anzahl)**, **Auto (Anzahl)** (nicht mit `*`).
+
+Das Abzeichen des Geräts wechselt auf „nicht erreichbar“, wenn das Kamerabild nicht gelesen werden
+kann.
+
+Und ein Gerät für den Server, **CodeProject.AI-Server**:
+
+- **Aktive Module**: die laufenden Module, z. B. „Face Processing, Object Detection (YOLOv5 6.2)“.
+- **Erkennungsdauer**: die mittlere Dauer der Erkennungen in Millisekunden, über die letzte Minute.
+
+Sein Abzeichen wechselt auf „nicht erreichbar“, wenn der Server nicht antwortet. Das Datum jedes
+Werts in Gladys zeigt seine letzte Änderung: die Zeit der letzten Erkennung.
+
+## Dashboard-Widget
+
+**CodeProject.AI-Kamera**: das analysierte Bild, die gefundenen Objekte, die beste Konfidenz, die
+Gesichter (Gesichtserkennung an), die Anzahl jedes gesuchten Labels, die Uhrzeit der Analyse und eine
+Schaltfläche **Jetzt analysieren** (die Einstellung **Schaltfläche Analysieren ausblenden** blendet
+sie aus).
+
+## Szenen
+
+### Auslöser
+
+- **Objekt von CodeProject.AI erkannt**: Ein Objekt erscheint bei einer regelmäßigen Analyse (in der
+  vorherigen war es nicht da), auf einer Kamera oder einer beliebigen. Filter auf die Objekte.
+  Variablen: Kamera, Objekt, Anzahl, Konfidenz. Ein Ereignis, wenn das Objekt erscheint, nicht eines
+  pro Analyse. Was beim Hinzufügen des Geräts, nach einem Neustart oder einer Änderung der
+  Einstellungen schon im Bild ist, zählt nicht. Der Filter listet die häufigen Objekte: Für ein
+  anderes Label lass ihn leer.
+- **Gesicht von CodeProject.AI gesehen**: Ein Gesicht erscheint bei einer regelmäßigen Analyse
+  (Gesichtserkennung an). Filter: bekannt (gespeichert) oder unbekannt. Variablen: Kamera, Name
+  („Unbekannt“ für einen Fremden), Konfidenz. Ein Ereignis pro erscheinender Person.
+- **Kamerabild nicht gelesen**: Das Bild einer Kamera konnte nicht gelesen werden (der erste Fehler
+  in Folge).
+
+Die Auslöser kommen nur von den regelmäßigen Analysen: Mit **Nur auf Anfrage** lösen sie nie aus.
+
+### Aktionen
+
+- **Kamera mit CodeProject.AI analysieren**: analysiert die Kamera jetzt und aktualisiert ihr Bild.
+  Ausgaben: Objekt erkannt, erkannte Objekte, Anzahl der Objekte, Anzahl der Personen, beste
+  Konfidenz, gesehene Gesichter, bekanntes Gesicht. Diese Aktion löst nichts aus.
+
+### Szenenideen
+
+- Wenn die Haustür aufgeht, **Kamera mit CodeProject.AI analysieren**, dann, wenn die Anzahl der
+  Personen über 0 liegt, schickt dir die Kernaktion „Kamerabild senden“ das Bild mit seinen Rahmen.
+- **Gesicht von CodeProject.AI gesehen** (unbekannt, Eingangskamera) bei eingeschalteter Alarmanlage →
+  Benachrichtigung.
+- **Gesicht von CodeProject.AI gesehen** (bekannt) an der Tür → Nachricht „Willkommen zu Hause,
+  {Name}“.
+- Ein Auto in der Einfahrt bei Nacht → Außenlicht einschalten.
+
+## Fehlerbehebung
+
+- **CodeProject.AI antwortet nicht**: Prüfe Adresse und Port (32168) und ob der Server läuft (sein
+  Dashboard öffnet sich unter `http://<server>:32168`).
+- **Kein Modul zur Objekterkennung**: Öffne das Dashboard von CodeProject.AI, Tab Install Modules, und
+  starte (oder installiere) eine Object Detection (YOLOv5 6.2, YOLOv8, Coral…).
+- **Kein Gesichtsmodul**: Installiere und starte Face Processing im selben Dashboard.
+- **Bild nicht gelesen**: Öffne die Kameraadresse in einem Browser auf dem Gladys-Rechner. Diese muss
+  ein JPEG-Bild liefern, keine Seite. Digest-Authentifizierung wird nicht unterstützt: Nimm eine
+  Adresse mit Basic-Authentifizierung oder die Schnappschuss-URL von Frigate oder go2rtc.
+- **Nichts wird erkannt**: Senke die **Mindestkonfidenz** oder probiere ein größeres Modell im
+  Dashboard von CodeProject.AI.
+- **Ein gespeichertes Gesicht wird nicht erkannt**: Speichere es erneut von der Kamera aus, die es
+  sieht, in ihrem üblichen Licht.
+- Ausführliche Protokolle: `LOG_LEVEL=debug`.
+
+## Grenzen
+
+- Höchstens vier Kameras und acht gezählte Labels pro Kamera.
+- Die Kameraadresse samt Passwort wird in der Konfiguration der Integration gespeichert und ist dort
+  für die Gladys-Administratoren sichtbar: Nimm lieber einen Kamerabenutzer, der nur ansehen darf.
+- Kein Video: ein Bild pro Analyse; ein Objekt, das zwischen zwei Analysen vorbeikommt, wird
+  verpasst.
+- Keine RTSP-Streams, keine Kennzeichenerkennung, keine eigenen Modelle in dieser Version.
+- Die Gesichter bleiben auf dem CodeProject.AI-Server (**Gesicht löschen** vergisst eines); Gladys
+  behält kein Gesichtsfoto.
+- Kamerabilder gehen höchstens alle 5 Sekunden pro Kamera an Gladys.
+- Nicht mit CodeProject verbunden. Ohne echte Kameras entwickelt: Rückmeldungen sind willkommen.

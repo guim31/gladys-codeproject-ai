@@ -9,15 +9,15 @@ A Gladys Assistant **external integration**: a Node.js service (Node 22+, ESM,
 no build step) that runs in its own sandboxed Docker container and talks to
 Gladys through
 [`@gladysassistant/integration-sdk`](https://github.com/GladysAssistant/integration-sdk-js),
-its only runtime dependency. It started from the official JavaScript template.
+its main runtime dependency (with `jpeg-js` for the camera images). It started from the official JavaScript template.
 
 ## Commands
 
 ```bash
 npm install
 npm test                                  # node --test, the built-in runner
-node --test test/devices.test.js          # one file
-node --test --test-name-pattern "plug"    # tests whose name matches
+node --test test/monitor.test.js          # one file
+node --test --test-name-pattern "face"    # tests whose name matches
 npm run lint                              # ESLint
 npm run format:check                      # Prettier, as the CI runs it
 npm run format                            # Prettier, fix in place
@@ -32,15 +32,20 @@ pushing.
 
 ```
 index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
-src/scenes.js                     scene action handlers (manifest `scene_actions`)
-src/widgets.js                    dashboard widget handlers (manifest `widgets`)
+src/app.js                        registers every SDK handler on the monitor; the actions
+src/monitor.js                    cameras, analyses, faces, timer, states, images, events, status
+src/cpai.js                       CodeProject.AI client (ping, modules, detection, faces) + errors
+src/snapshot.js                   camera addresses: HTTP JPEG snapshot download (Basic auth)
+src/devices.js                    camera and server devices (features, external ids), names, summary
+src/image.js, image-worker.js,    boxes drawn, JPEG shrunk to the 150 KB of a Gladys camera
+  jpeg-scaled.js                    image, in a worker (from gladys-doods / gladys-shinobi)
+src/scenes.js                     scene action `analyze`
+src/widgets.js                    dashboard widget `camera`
+src/texts.js                      status, failures (ActionFailure), action messages, check report
 src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
-gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
-test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+gladys-assistant-integration.json manifest: config (4 camera slots), actions, triggers, widget
+docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys (same sections)
+test/                             node --test, the SDK's fake Gladys + a fake server (recorded answers)
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
 
@@ -58,7 +63,7 @@ test/                             node --test, against the SDK's fake Gladys (in
   one, `0`/`0` for a feature without a range (text, image...). A missing one
   can pass the publication on a core that does not check it, then fail when
   the user clicks "Add" (HTTP 422 `t_device_feature.min cannot be null`). The
-  SDK's fake Gladys refuses it on publication, and `test/devices.test.js`
+  SDK's fake Gladys refuses it on publication, and `test/gladys-rules.test.js`
   checks them.
 - **The container rootfs is read-only.** Write only under `/data`, the one
   writable volume. Never log tokens, passwords or API keys.
@@ -78,8 +83,9 @@ test/                             node --test, against the SDK's fake Gladys (in
   `type: "provider"`: 5.1.0). `test/manifest.test.js` ties the manifest to the
   code (defaults, action, scene and widget handlers): change both sides
   together.
-- **User-facing text** is bilingual (English and French): action messages,
-  manifest texts, and `docs/en.md` / `docs/fr.md`, kept in sync.
+- **User-facing text** exists in English, French, German and Spanish: action
+  messages, manifest texts, widget content, feature names, and
+  `docs/{en,fr,de,es}.md`, kept in sync. `test/i18n.test.js` enforces it.
 - **Style.** Prettier formats, ESLint catches mistakes. Comments explain why,
   in English. Tests never touch the network.
 
@@ -259,3 +265,39 @@ long, et sur un « Sie »/« Ihr… » de politesse en allemand. Le store exige 
 - Docs `en`, `fr`, `de`, `es` avec les mêmes sections.
 - Chauffe, ouverture, sécurité : ne rien rendre pilotable « comme un thermostat » ou par un assistant
   vocal quand une erreur serait dangereuse (leçon d'OctoPrint).
+
+## CodeProject.AI (propre à cette intégration)
+
+- API relevée sur `codeproject/ai-server` **2.9.7** (CPU, modules Object Detection YOLOv5 6.2 et Face Processing
+  démarrés d'office ; YOLOv5 .NET installé mais `NoAutoStart`), port **32168**, aucune authentification :
+  - `GET /v1/server/status/ping` → `{ success, version: { major, minor, patch } }` ; `GET /v1/module/list/status` →
+    `{ statuses: [{ moduleId, name, status: "Started" | "NoAutoStart" | … }] }`. Un module de détection est un
+    `moduleId` en `ObjectDetection…` (ou `yolo`) au statut `Started` : sinon le statut de l'intégration est rouge.
+  - `POST /v1/vision/detection` multipart `image` + `min_confidence` (**0-1**) → `predictions: [{ label,
+confidence (0-1), x_min, y_min, x_max, y_max }]` en **pixels**, `inferenceMs`. Pas d'image annotée : les cadres
+    sont dessinés par `src/image-worker.js`.
+  - `POST /v1/vision/face/recognize` → `predictions: [{ userid, confidence, x_min… }]`, `userid: "unknown"`
+    (confiance 0) pour un inconnu. `face/register` (`image` + `userid`), `face/delete` (`userid`), `face/list` →
+    `faces: [noms]`. `image` et `image1` sont acceptés.
+- **Erreurs** : une route vision qui échoue répond **HTTP 200** avec `{ success: false, error, code: 500 }`
+  (« Error occurred on the server » pour des octets qui ne sont pas une image, « No face found in image » /
+  « No face detected » sans visage) ; une route qu'aucun module installé ne sert répond un **404 nu**
+  (`application/problem+json`). « Pas de visage » n'est pas une erreur pour la reconnaissance (liste vide), c'en est
+  une pour l'enregistrement (message rouge dédié).
+- Les durées d'inférence diffèrent d'une caméra à l'autre (0,65 à 0,85 s sur CPU) : la fonctionnalité « Durée de
+  détection » publie leur **moyenne** à chaque ménage (une minute), pas une valeur par analyse, sinon elle alterne et
+  consomme le budget de 300 états/minute.
+- Reconnaissance des visages seulement si une `person` dépasse le seuil de la caméra : pas d'envoi inutile. Module
+  absent (404) : un avertissement, puis plus aucune demande jusqu'au prochain changement d'adresse ou action réussie.
+- Une analyse est liée à sa **génération** de configuration et à son objet caméra (`isCurrent`) : celle mise en file
+  avant une reconfiguration ne publie rien des anciens réglages. Trois analyses de suite en échec côté serveur (délai,
+  `success: false`) passent le statut en rouge (`CONNECTION_TEXT.failing`) jusqu'à la suivante réussie ; le statut
+  n'est renvoyé à Gladys qu'à un changement (remis à zéro à la reconnexion). Visages non lus (erreur, module absent) :
+  `camera.faces = null`, jamais l'ancien résultat, et aucun déclencheur « visage vu » au retour.
+- L'instantané est lu par morceaux et coupé au-delà de 8 Mo : une adresse vidéo/MJPEG donnée par erreur ne remplit
+  pas les 256 Mo.
+- Pas de RTSP (il faudrait ffmpeg) : instantanés JPEG HTTP seulement, téléchargés par le conteneur. Le reste
+  (emplacements `camera_1…4`, déclencheurs sur **apparition**, `seeded`, `camera_unreachable` une fois par panne)
+  suit gladys-doods.
+- Image Docker du serveur : **5,6 Go** ; le premier `detection` après démarrage prend ~1 s (modèle chargé au
+  démarrage du module, pas à la première requête).

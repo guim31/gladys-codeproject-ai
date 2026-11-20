@@ -1,0 +1,23 @@
+{
+  "message": "A face was recognised",
+  "count": 1,
+  "predictions": [
+    {
+      "confidence": 0.8015828728675842,
+      "userid": "Alice",
+      "x_min": 392,
+      "y_min": 247,
+      "x_max": 759,
+      "y_max": 770
+    }
+  ],
+  "success": true,
+  "inferenceMs": 518,
+  "processMs": 534,
+  "moduleId": "FaceProcessing",
+  "moduleName": "Face Processing",
+  "code": 200,
+  "command": "recognize",
+  "inferenceDevice": "CPU",
+  "analysisRoundTripMs": 538
+}

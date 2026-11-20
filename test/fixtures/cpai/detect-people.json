@@ -1,0 +1,239 @@
+{
+  "message": "Found car, traffic light, bus...",
+  "count": 28,
+  "predictions": [
+    {
+      "confidence": 0.3405377268791199,
+      "label": "car",
+      "x_min": 677,
+      "y_min": 630,
+      "x_max": 721,
+      "y_max": 685
+    },
+    {
+      "confidence": 0.36683353781700134,
+      "label": "traffic light",
+      "x_min": 209,
+      "y_min": 454,
+      "x_max": 226,
+      "y_max": 487
+    },
+    {
+      "confidence": 0.3855600357055664,
+      "label": "bus",
+      "x_min": 971,
+      "y_min": 542,
+      "x_max": 1049,
+      "y_max": 690
+    },
+    {
+      "confidence": 0.40126416087150574,
+      "label": "bus",
+      "x_min": 557,
+      "y_min": 590,
+      "x_max": 615,
+      "y_max": 640
+    },
+    {
+      "confidence": 0.45106279850006104,
+      "label": "traffic light",
+      "x_min": 197,
+      "y_min": 495,
+      "x_max": 208,
+      "y_max": 531
+    },
+    {
+      "confidence": 0.45430421829223633,
+      "label": "car",
+      "x_min": 15,
+      "y_min": 549,
+      "x_max": 108,
+      "y_max": 804
+    },
+    {
+      "confidence": 0.4647802710533142,
+      "label": "traffic light",
+      "x_min": 434,
+      "y_min": 442,
+      "x_max": 459,
+      "y_max": 488
+    },
+    {
+      "confidence": 0.48039230704307556,
+      "label": "traffic light",
+      "x_min": 671,
+      "y_min": 526,
+      "x_max": 684,
+      "y_max": 548
+    },
+    {
+      "confidence": 0.4915962815284729,
+      "label": "person",
+      "x_min": 1188,
+      "y_min": 632,
+      "x_max": 1254,
+      "y_max": 748
+    },
+    {
+      "confidence": 0.5164064764976501,
+      "label": "car",
+      "x_min": 471,
+      "y_min": 629,
+      "x_max": 501,
+      "y_max": 666
+    },
+    {
+      "confidence": 0.5642600655555725,
+      "label": "traffic light",
+      "x_min": 613,
+      "y_min": 525,
+      "x_max": 625,
+      "y_max": 548
+    },
+    {
+      "confidence": 0.5777234435081482,
+      "label": "person",
+      "x_min": 885,
+      "y_min": 600,
+      "x_max": 1017,
+      "y_max": 845
+    },
+    {
+      "confidence": 0.5948268175125122,
+      "label": "car",
+      "x_min": 860,
+      "y_min": 630,
+      "x_max": 933,
+      "y_max": 685
+    },
+    {
+      "confidence": 0.6328914165496826,
+      "label": "car",
+      "x_min": 647,
+      "y_min": 612,
+      "x_max": 685,
+      "y_max": 633
+    },
+    {
+      "confidence": 0.6483748555183411,
+      "label": "person",
+      "x_min": 0,
+      "y_min": 538,
+      "x_max": 71,
+      "y_max": 848
+    },
+    {
+      "confidence": 0.6705606579780579,
+      "label": "car",
+      "x_min": 783,
+      "y_min": 625,
+      "x_max": 829,
+      "y_max": 693
+    },
+    {
+      "confidence": 0.6925038695335388,
+      "label": "person",
+      "x_min": 1233,
+      "y_min": 636,
+      "x_max": 1279,
+      "y_max": 847
+    },
+    {
+      "confidence": 0.6944413781166077,
+      "label": "traffic light",
+      "x_min": 875,
+      "y_min": 502,
+      "x_max": 893,
+      "y_max": 540
+    },
+    {
+      "confidence": 0.7093162536621094,
+      "label": "traffic light",
+      "x_min": 549,
+      "y_min": 444,
+      "x_max": 573,
+      "y_max": 492
+    },
+    {
+      "confidence": 0.7118849158287048,
+      "label": "car",
+      "x_min": 231,
+      "y_min": 607,
+      "x_max": 349,
+      "y_max": 718
+    },
+    {
+      "confidence": 0.7492548823356628,
+      "label": "truck",
+      "x_min": 231,
+      "y_min": 550,
+      "x_max": 373,
+      "y_max": 700
+    },
+    {
+      "confidence": 0.7883777022361755,
+      "label": "traffic light",
+      "x_min": 762,
+      "y_min": 502,
+      "x_max": 781,
+      "y_max": 538
+    },
+    {
+      "confidence": 0.8376882076263428,
+      "label": "person",
+      "x_min": 366,
+      "y_min": 537,
+      "x_max": 489,
+      "y_max": 850
+    },
+    {
+      "confidence": 0.8460337519645691,
+      "label": "car",
+      "x_min": 619,
+      "y_min": 630,
+      "x_max": 705,
+      "y_max": 696
+    },
+    {
+      "confidence": 0.8578893542289734,
+      "label": "person",
+      "x_min": 454,
+      "y_min": 527,
+      "x_max": 643,
+      "y_max": 846
+    },
+    {
+      "confidence": 0.8634673953056335,
+      "label": "person",
+      "x_min": 703,
+      "y_min": 595,
+      "x_max": 822,
+      "y_max": 850
+    },
+    {
+      "confidence": 0.8688300251960754,
+      "label": "bus",
+      "x_min": 1032,
+      "y_min": 453,
+      "x_max": 1279,
+      "y_max": 839
+    },
+    {
+      "confidence": 0.9125578999519348,
+      "label": "car",
+      "x_min": 98,
+      "y_min": 607,
+      "x_max": 268,
+      "y_max": 774
+    }
+  ],
+  "success": true,
+  "processMs": 839,
+  "inferenceMs": 838,
+  "moduleId": "ObjectDetectionYOLOv5-6.2",
+  "moduleName": "Object Detection (YOLOv5 6.2)",
+  "code": 200,
+  "command": "detect",
+  "inferenceDevice": "CPU",
+  "analysisRoundTripMs": 857
+}
