@@ -129,6 +129,11 @@ test('a snapshot URL with credentials becomes a Basic header; a page is not an i
     fetchSnapshot(new URL(`${CAMERA_HOST}/locked.jpg`), { fetch: server.fetch }),
     (err) => err instanceof SnapshotError && err.kind === 'auth',
   );
+  server.camera('video', 'car', { huge: true });
+  await assert.rejects(
+    fetchSnapshot(new URL(`${CAMERA_HOST}/video.jpg`), { fetch: server.fetch }),
+    (err) => err instanceof SnapshotError && /too large/.test(err.message),
+  );
   server.camera('login', 'car', { html: true });
   await assert.rejects(
     fetchSnapshot(new URL(`${CAMERA_HOST}/login.jpg`), { fetch: server.fetch }),
@@ -598,4 +603,63 @@ test('cameras missed at start (server not ready) are analyzed at the next housek
   server.down = false;
   await world.monitor.housekeeping();
   assert.equal(text(world, `${ID.garden}:objects`), 'Car ×3');
+});
+
+test('analyses failing in a row turn the status red until one works', async (t) => {
+  const world = await createWorld();
+  t.after(() => world.app.stop());
+  await createAll(world);
+  world.server.detectionError = true;
+  for (let round = 0; round < 2; round += 1) {
+    world.clock.advance(60_000);
+    await world.monitor.tick();
+    await world.monitor.housekeeping();
+  }
+  assert.equal(world.fake.connectionStatus.connected, false);
+  assert.match(world.fake.connectionStatus.message.fr, /analyses échouent/);
+  world.server.detectionError = false;
+  world.clock.advance(60_000);
+  await world.monitor.tick();
+  assert.deepEqual(world.fake.connectionStatus, { connected: true });
+});
+
+test('a face recognition that fails shows no old face, and fires nothing when back', async (t) => {
+  const world = await createWorld({ config: FACES });
+  t.after(() => world.app.stop());
+  world.server.scene('garden', 'portrait');
+  world.server.registered.add('portrait');
+  await createAll(world);
+  assert.equal(text(world, `${ID.garden}:face`), 'Alice');
+  world.server.faceError = true;
+  const ack = await world.fake.sceneAction('analyze', { camera: ID.garden });
+  assert.equal(ack.data.outputs.known_face, false);
+  assert.equal(ack.data.outputs.faces, '');
+  world.clock.advance(60_000);
+  await world.monitor.tick();
+  world.server.faceError = false;
+  world.clock.advance(60_000);
+  await world.monitor.tick();
+  // Alice never left the picture: no event when recognition is back.
+  assert.deepEqual(
+    world.fake.sceneEvents.filter((event) => event.key === 'face_recognized'),
+    [],
+  );
+});
+
+test('an analysis queued before a reconfiguration does not publish the old settings', async (t) => {
+  const world = await createWorld();
+  t.after(() => world.app.stop());
+  await createAll(world);
+  const garden = world.monitor.cameras.get(2);
+  // Five cars now: the old settings would publish count-car 5.
+  world.server.scene('garden', 'street');
+  const states = world.fake.states.length;
+  const queued = world.monitor.analyze(garden, { events: true });
+  await world.fake.configUpdated({ ...BASE_CONFIG, camera_2_labels: 'dog' });
+  // Started or not when the settings changed, it publishes nothing of them.
+  await queued.catch(() => {});
+  const old = world.fake.states
+    .slice(states)
+    .filter((item) => item.device_feature_external_id === `${ID.garden}:count-car`);
+  assert.deepEqual(old, []);
 });

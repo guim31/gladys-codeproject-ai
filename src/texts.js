@@ -44,6 +44,12 @@ export const CONNECTION_TEXT = {
     de: 'Etwas antwortet, aber nicht wie CodeProject.AI: Prüfe Adresse, Port und die Protokolle.',
     es: 'Algo responde, pero no como CodeProject.AI: compruebe la dirección, el puerto y los registros.',
   },
+  failing: {
+    en: 'CodeProject.AI answers, but its analyses keep failing: check its dashboard and logs.',
+    fr: 'CodeProject.AI répond, mais ses analyses échouent sans cesse : vérifiez son tableau de bord et ses logs.',
+    de: 'CodeProject.AI antwortet, aber seine Analysen schlagen ständig fehl: Prüfe sein Dashboard und seine Protokolle.',
+    es: 'CodeProject.AI responde, pero sus análisis fallan una y otra vez: compruebe su panel y sus registros.',
+  },
   noDetection: {
     en: 'CodeProject.AI runs no object detection module: start one in its dashboard (Install Modules).',
     fr: "CodeProject.AI ne fait tourner aucun module de détection d'objets : démarrez-en un dans son tableau de bord (Install Modules).",

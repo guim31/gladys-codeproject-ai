@@ -61,7 +61,12 @@ const COLORS = {
   unknown: [40, 140, 255],
 };
 
-const isDetectionModule = (module) => /objectdetection|yolo/i.test(module.id);
+// ObjectDetectionYOLOv5-6.2, ObjectDetectionYOLOv8, ObjectDetectionCoral… (not a
+// training module such as TrainingObjectDetectionYOLOv5).
+// Analyses failing in a row (timeouts, module errors) before the status turns red.
+const FAILURES_BEFORE_RED = 3;
+
+const isDetectionModule = (module) => /^(objectdetection|yolo)/i.test(module.id);
 
 export const WIDGET_KEY = 'camera';
 
@@ -71,6 +76,8 @@ export const DEFAULT_TIMINGS = {
   heartbeatMs: 12 * 60 * 60 * 1000,
   // Gladys takes 12 camera images a minute per device.
   minImageGapMs: 5000,
+  // What an image asked by Gladys may wait for a new analysis (Gladys: 15 s).
+  imageWaitMs: 12_000,
 };
 
 export class CpaiMonitor {
@@ -128,6 +135,8 @@ export class CpaiMonitor {
 
   /** Gladys came back (a reconnection): what it may have lost, again. */
   async resync(config) {
+    // Gladys restarted: the status it held is gone.
+    this.statusSent = null;
     await this.reconfigure(config);
     for (const camera of this.cameras.values()) {
       this.gladys.forgetPublishedStates?.(this.ids(camera).device);
@@ -182,6 +191,7 @@ export class CpaiMonitor {
         detections: same ? known.detections : [],
         faces: same ? known.faces : null,
         facesSeen: same ? known.facesSeen : new Set(),
+        facesSeeded: same ? known.facesSeeded : false,
         image: same ? known.image : null,
         present: same ? known.present : new Set(),
         // `present` holds what the last analysis saw (see fireAppeared).
@@ -237,7 +247,12 @@ export class CpaiMonitor {
         );
       } else {
         this.server = { ok: true, version, modules: running };
-        await this.setStatus(true);
+        // Up, but its analyses keep failing: stays red until one works.
+        if ((this.analysisFailures ?? 0) >= FAILURES_BEFORE_RED) {
+          await this.setStatus(false, CONNECTION_TEXT.failing);
+        } else {
+          await this.setStatus(true);
+        }
         if (wasOk === false || wasOk === undefined) {
           logger.info(
             `CodeProject.AI ${version} answers, modules: ${running.map((m) => m.id).join(', ') || '?'}`,
@@ -272,6 +287,12 @@ export class CpaiMonitor {
   }
 
   async setStatus(connected, message) {
+    // Housekeeping checks every minute: tell Gladys the changes only.
+    const key = JSON.stringify([connected, connected ? null : message]);
+    if (key === this.statusSent) {
+      return;
+    }
+    this.statusSent = key;
     await this.gladys
       .setConnectionStatus(connected, connected ? undefined : message)
       .catch((err) => logger.debug(`Cannot set the connection status: ${err.message}`));
@@ -497,7 +518,11 @@ export class CpaiMonitor {
     this.ticking = true;
     try {
       const halfPeriod = (this.config.intervalSeconds * 1000) / 2;
-      for (const camera of this.cameras.values()) {
+      for (const camera of [...this.cameras.values()]) {
+        // A reconfiguration during the loop replaced the cameras: stop here.
+        if (this.cameras.get(camera.slot) !== camera) {
+          break;
+        }
         if (!camera.validUrl || !this.createdDevice(camera)) {
           continue;
         }
@@ -546,7 +571,8 @@ export class CpaiMonitor {
     if (camera.running) {
       return camera.running;
     }
-    const run = this.queue.then(() => this.runAnalysis(camera, { events }));
+    const generation = this.generation;
+    const run = this.queue.then(() => this.runAnalysis(camera, { events, generation }));
     this.queue = run.catch(() => {});
     camera.running = run.finally(() => {
       camera.running = null;
@@ -554,8 +580,16 @@ export class CpaiMonitor {
     return camera.running;
   }
 
-  async runAnalysis(camera, { events }) {
-    const generation = this.generation;
+  /** The camera object still the current one of its slot (no reconfiguration since). */
+  isCurrent(camera, generation) {
+    return generation === this.generation && this.cameras.get(camera.slot) === camera;
+  }
+
+  async runAnalysis(camera, { events, generation = this.generation }) {
+    if (!this.isCurrent(camera, generation)) {
+      // Queued before a reconfiguration: its settings are gone.
+      throw new ActionFailure(FAILURE.unknownCamera);
+    }
     if (!this.client || !this.server?.ok) {
       throw new ActionFailure(FAILURE.notConfigured);
     }
@@ -567,7 +601,9 @@ export class CpaiMonitor {
     try {
       snapshot = await fetchSnapshot(url, { fetch: this.fetch });
     } catch (err) {
-      await this.cameraFailed(camera, err, events);
+      if (this.isCurrent(camera, generation)) {
+        await this.cameraFailed(camera, err, events);
+      }
       throw new ActionFailure(FAILURE.camera);
     }
     let result;
@@ -584,7 +620,7 @@ export class CpaiMonitor {
     }));
     const summary = summarize(detections, camera, this.config.language);
     const faces = await this.recognizeFaces(camera, snapshot, detections);
-    if (generation !== this.generation) {
+    if (!this.isCurrent(camera, generation)) {
       // The configuration changed meanwhile: this camera object is gone.
       return summary;
     }
@@ -592,23 +628,31 @@ export class CpaiMonitor {
     const facesBefore = camera.faces ? facesText(camera.faces, 'en') : null;
     const changed =
       camera.result?.text !== summary.text ||
-      (faces !== null && facesBefore !== facesText(faces, 'en'));
+      facesBefore !== (faces ? facesText(faces, 'en') : null);
     camera.result = summary;
     camera.detections = detections;
-    if (faces !== null) {
+    if (this.config.faces) {
+      // null: asked and failed (or no module): no old face passed off as current.
       camera.faces = faces;
     }
     camera.analyzedAt = now;
     if (result.inferenceMs !== null) {
-      this.inferenceSamples.push(result.inferenceMs);
+      // Bounded: emptied only when the server device is published.
+      this.inferenceSamples = [...this.inferenceSamples.slice(-59), result.inferenceMs];
     }
+    this.analysisFailures = 0;
     if (this.serverFailing) {
       this.serverFailing = false;
       logger.info('CodeProject.AI analyzes again');
+      await this.setStatus(true);
     }
     await this.cameraBack(camera);
     try {
-      camera.image = { jpeg: await fitJpeg(snapshot, this.boxes(camera, detections)), at: now };
+      const jpeg = await fitJpeg(snapshot, this.boxes(camera, detections));
+      if (!this.isCurrent(camera, generation)) {
+        return summary;
+      }
+      camera.image = { jpeg, at: now };
       camera.imageSeq += 1;
       // The gap guards the regular analyses; one asked for is shown.
       await this.publishImage(camera, { force: !events });
@@ -623,6 +667,8 @@ export class CpaiMonitor {
       // already in view did not "appear".
       camera.present = new Set(summary.labels);
       camera.facesSeen = faceKeys(camera.faces);
+      // Faces not read on this first look: the next ones that are only record.
+      camera.facesSeeded = camera.faces !== null;
       camera.seeded = true;
     }
     if (changed) {
@@ -703,12 +749,14 @@ export class CpaiMonitor {
         .catch((err) => logger.debug(`Cannot fire ${TRIGGERS.OBJECT}: ${err.message}`));
     }
     camera.present = now;
-    if (!this.config.faces) {
-      return;
+    if (!this.config.faces || camera.faces === null) {
+      return; // not read this time: nothing appeared, nothing left
     }
     const faces = faceKeys(camera.faces);
+    const facesSeeded = seeded && camera.facesSeeded;
+    camera.facesSeeded = true;
     for (const key of faces) {
-      if (!seeded || camera.facesSeen.has(key) || !created) {
+      if (!facesSeeded || camera.facesSeen.has(key) || !created) {
         continue;
       }
       const known = key !== UNKNOWN_FACE;
@@ -781,10 +829,15 @@ export class CpaiMonitor {
       await this.checkServer();
       return;
     }
-    // A slow model, an error of the module: one line until an analysis works again.
+    // A slow model, an error of the module: one line until an analysis works
+    // again, and the status red after a few failures in a row.
     const log = this.serverFailing ? 'debug' : 'warn';
     this.serverFailing = true;
+    this.analysisFailures = (this.analysisFailures ?? 0) + 1;
     logger[log](`CodeProject.AI analysis failed: ${err.message}`);
+    if (this.analysisFailures >= FAILURES_BEFORE_RED) {
+      await this.setStatus(false, CONNECTION_TEXT.failing);
+    }
   }
 
   /**
@@ -880,7 +933,15 @@ export class CpaiMonitor {
       camera.image &&
       this.clock() - camera.image.at < Math.max(this.config.intervalSeconds, 10) * 1000;
     if (!fresh && this.server?.ok) {
-      await this.analyze(camera, { events: false }).catch(() => {});
+      // Gladys waits 15 s: past that, the last picture (if the camera works).
+      let timer;
+      await Promise.race([
+        this.analyze(camera, { events: false }).catch(() => {}),
+        new Promise((resolve) => {
+          timer = setTimeout(resolve, this.timings.imageWaitMs);
+        }),
+      ]);
+      clearTimeout(timer);
     }
     // A camera down: no old picture passed off as the current one.
     if (!camera.image || camera.failure) {

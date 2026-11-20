@@ -289,6 +289,13 @@ confidence (0-1), x_min, y_min, x_max, y_max }]` en **pixels**, `inferenceMs`. P
   consomme le budget de 300 états/minute.
 - Reconnaissance des visages seulement si une `person` dépasse le seuil de la caméra : pas d'envoi inutile. Module
   absent (404) : un avertissement, puis plus aucune demande jusqu'au prochain changement d'adresse ou action réussie.
+- Une analyse est liée à sa **génération** de configuration et à son objet caméra (`isCurrent`) : celle mise en file
+  avant une reconfiguration ne publie rien des anciens réglages. Trois analyses de suite en échec côté serveur (délai,
+  `success: false`) passent le statut en rouge (`CONNECTION_TEXT.failing`) jusqu'à la suivante réussie ; le statut
+  n'est renvoyé à Gladys qu'à un changement (remis à zéro à la reconnexion). Visages non lus (erreur, module absent) :
+  `camera.faces = null`, jamais l'ancien résultat, et aucun déclencheur « visage vu » au retour.
+- L'instantané est lu par morceaux et coupé au-delà de 8 Mo : une adresse vidéo/MJPEG donnée par erreur ne remplit
+  pas les 256 Mo.
 - Pas de RTSP (il faudrait ffmpeg) : instantanés JPEG HTTP seulement, téléchargés par le conteneur. Le reste
   (emplacements `camera_1…4`, déclencheurs sur **apparition**, `seeded`, `camera_unreachable` une fois par panne)
   suit gladys-doods.

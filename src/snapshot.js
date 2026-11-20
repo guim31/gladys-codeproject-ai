@@ -92,9 +92,9 @@ export async function fetchSnapshot(url, { fetch: fetchImpl = globalThis.fetch }
   if (length > MAX_SNAPSHOT_BYTES) {
     throw new SnapshotError('format', 'The camera answers something too large for a snapshot');
   }
-  const bytes = Buffer.from(await response.arrayBuffer());
-  if (bytes.length === 0 || bytes.length > MAX_SNAPSHOT_BYTES) {
-    throw new SnapshotError('format', 'The camera answers an empty or too large file');
+  const bytes = await readBounded(response);
+  if (bytes.length === 0) {
+    throw new SnapshotError('format', 'The camera answers an empty file');
   }
   // A JPEG, the format of camera snapshots and of Gladys camera images;
   // anything else (a login page, a PNG) is refused here, said in clear.
@@ -102,4 +102,37 @@ export async function fetchSnapshot(url, { fetch: fetchImpl = globalThis.fetch }
     throw new SnapshotError('format', 'The camera address does not give a JPEG image');
   }
   return bytes;
+}
+
+/**
+ * The body, read chunk by chunk and dropped past MAX_SNAPSHOT_BYTES: a video
+ * or MJPEG address given by mistake never fills the 256 MB of the sandbox.
+ */
+async function readBounded(response) {
+  if (!response.body) {
+    return Buffer.alloc(0);
+  }
+  const reader = response.body.getReader();
+  const chunks = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      size += value.length;
+      if (size > MAX_SNAPSHOT_BYTES) {
+        throw new SnapshotError('format', 'The camera answers something too large for a snapshot');
+      }
+      chunks.push(value);
+    }
+  } catch (err) {
+    await reader.cancel().catch(() => {});
+    if (err instanceof SnapshotError) {
+      throw err;
+    }
+    throw new SnapshotError('timeout', 'The camera did not send its picture in time');
+  }
+  return Buffer.concat(chunks);
 }

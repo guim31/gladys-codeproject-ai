@@ -49,6 +49,9 @@ export class FakeCpai {
     this.down = false;
     this.faceModule = true;
     this.detectionRunning = true;
+    // A module that answers `success: false` to every request.
+    this.detectionError = false;
+    this.faceError = false;
     this.registered = new Set();
     this.requests = [];
     // camera name → { scene, bytes, auth?, down?, html? }
@@ -111,6 +114,21 @@ export class FakeCpai {
       ) {
         return new Response('Unauthorized', { status: 401 });
       }
+      if (camera.huge) {
+        // A video address: an endless body, no content-length.
+        let sent = 0;
+        const stream = new ReadableStream({
+          pull(controller) {
+            sent += 1;
+            if (sent > 200) {
+              controller.close();
+              return;
+            }
+            controller.enqueue(new Uint8Array(64 * 1024).fill(0xff));
+          },
+        });
+        return new Response(stream, { status: 200, headers: { 'content-type': 'video/mjpeg' } });
+      }
       if (camera.html) {
         return new Response('<html>login</html>', {
           status: 200,
@@ -143,7 +161,7 @@ export class FakeCpai {
         if (!this.detectionRunning) {
           return notFound();
         }
-        if (!scene) {
+        if (!scene || this.detectionError) {
           return json(200, { success: false, error: 'Error occurred on the server', code: 500 });
         }
         const min = Number(fields.min_confidence ?? 0.4);
@@ -154,6 +172,9 @@ export class FakeCpai {
       case '/v1/vision/face/recognize':
         if (!this.faceModule) {
           return notFound();
+        }
+        if (this.faceError) {
+          return failure('Error occurred on the server', 'recognize');
         }
         if (!scene?.face) {
           return failure('No face found in image', 'recognize');

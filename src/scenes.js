@@ -16,10 +16,14 @@ async function analyze(monitor, { fields }) {
     detected: summary.total > 0,
     objects: summary.text,
     count: summary.total,
-    persons: summary.counts.person ?? 0,
+    // Every person above the threshold, even when "person" is not a searched label.
+    persons: camera.detections.filter(
+      (item) => item.label === 'person' && item.confidence >= camera.confidence,
+    ).length,
     confidence: summary.confidence,
     // Face recognition off, or no face module: no face, nobody known.
     faces: monitor.facesIn(camera, monitor.config.language) ?? '',
+    // camera.faces is this analysis's (null when not read): never an old face.
     known_face: (camera.faces ?? []).some((face) => face.name),
   };
 }

@@ -111,6 +111,9 @@ export function drawBoxes(image, boxes) {
     const x1 = clampX(box.x1);
     const y0 = clampY(box.y0);
     const y1 = clampY(box.y1);
+    if (x1 <= x0 || y1 <= y0) {
+      continue; // no area (a face the server gave without a box)
+    }
     for (let k = 0; k < LINE; k += 1) {
       for (let x = x0; x <= x1; x += 1) {
         paint(x, Math.min(y0 + k, y1), box.color);

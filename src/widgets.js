@@ -20,8 +20,8 @@ import { ActionFailure, FAILURE, analysisMessage } from './texts.js';
 export const ACTIONS = { ANALYZE: 'analyze_1' };
 // A status value holds 40 characters at most.
 const MAX_VALUE = 40;
-// Count rows shown at most, after the objects, the confidence and the faces.
-const MAX_COUNT_ROWS = 4;
+// Rows of a status component at most (the core drops the rest).
+const MAX_STATUS_ROWS = 10;
 
 export const TEXT = {
   pick: {
@@ -137,7 +137,7 @@ async function get(monitor, { settings, language = 'en' }) {
         color: (camera.faces ?? []).length > 0 ? WIDGET_COLORS.WARNING : WIDGET_COLORS.NEUTRAL,
       });
     }
-    for (const label of countedLabels(camera).slice(0, MAX_COUNT_ROWS)) {
+    for (const label of countedLabels(camera).slice(0, MAX_STATUS_ROWS - items.length)) {
       const count = local.counts[label] ?? 0;
       items.push({
         label: clip(labelName(label, language)),
