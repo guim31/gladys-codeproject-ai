@@ -287,15 +287,21 @@ export class CpaiMonitor {
   }
 
   async setStatus(connected, message) {
-    // Housekeeping checks every minute: tell Gladys the changes only.
+    // Housekeeping checks every minute: tell Gladys the changes only, and
+    // count a status as sent once Gladys took it (a failed POST is retried).
     const key = JSON.stringify([connected, connected ? null : message]);
     if (key === this.statusSent) {
       return;
     }
-    this.statusSent = key;
     await this.gladys
       .setConnectionStatus(connected, connected ? undefined : message)
-      .catch((err) => logger.debug(`Cannot set the connection status: ${err.message}`));
+      .then(() => {
+        this.statusSent = key;
+      })
+      .catch((err) => {
+        this.statusSent = null;
+        logger.debug(`Cannot set the connection status: ${err.message}`);
+      });
   }
 
   // --- Devices -------------------------------------------------------------------
