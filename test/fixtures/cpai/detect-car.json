@@ -1,0 +1,47 @@
+{
+  "message": "Found car, truck, car...",
+  "count": 4,
+  "predictions": [
+    {
+      "confidence": 0.6905996203422546,
+      "label": "car",
+      "x_min": 1179,
+      "y_min": 51,
+      "x_max": 1258,
+      "y_max": 97
+    },
+    {
+      "confidence": 0.7668867111206055,
+      "label": "truck",
+      "x_min": 50,
+      "y_min": 1,
+      "x_max": 294,
+      "y_max": 139
+    },
+    {
+      "confidence": 0.7862094044685364,
+      "label": "car",
+      "x_min": 1133,
+      "y_min": 13,
+      "x_max": 1279,
+      "y_max": 398
+    },
+    {
+      "confidence": 0.8383862376213074,
+      "label": "car",
+      "x_min": 73,
+      "y_min": 45,
+      "x_max": 1224,
+      "y_max": 647
+    }
+  ],
+  "success": true,
+  "processMs": 650,
+  "inferenceMs": 650,
+  "moduleId": "ObjectDetectionYOLOv5-6.2",
+  "moduleName": "Object Detection (YOLOv5 6.2)",
+  "code": 200,
+  "command": "detect",
+  "inferenceDevice": "CPU",
+  "analysisRoundTripMs": 667
+}

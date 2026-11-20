@@ -1,0 +1,33 @@
+{
+  "statuses": [
+    {
+      "moduleId": "ObjectDetectionYOLOv5Net",
+      "name": "Object Detection (YOLOv5 .NET)",
+      "version": "1.14.0",
+      "status": "NoAutoStart",
+      "started": null,
+      "lastSeen": null,
+      "requestCount": 0
+    },
+    {
+      "moduleId": "FaceProcessing",
+      "name": "Face Processing",
+      "version": "1.12.3",
+      "status": "Started",
+      "started": "2026-11-20T08:12:31Z",
+      "lastSeen": "2026-11-20T08:12:31Z",
+      "requestCount": 9
+    },
+    {
+      "moduleId": "ObjectDetectionYOLOv5-6.2",
+      "name": "Object Detection (YOLOv5 6.2)",
+      "version": "1.10.0",
+      "status": "Started",
+      "started": "2026-11-20T08:12:31Z",
+      "lastSeen": "2026-11-20T08:12:31Z",
+      "requestCount": 7
+    }
+  ],
+  "code": 200,
+  "success": true
+}

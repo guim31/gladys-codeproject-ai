@@ -1,0 +1,23 @@
+{
+  "message": "No known faces",
+  "count": 1,
+  "predictions": [
+    {
+      "confidence": 0,
+      "userid": "unknown",
+      "x_min": 392,
+      "y_min": 247,
+      "x_max": 759,
+      "y_max": 770
+    }
+  ],
+  "success": true,
+  "inferenceMs": 294,
+  "processMs": 2388,
+  "moduleId": "FaceProcessing",
+  "moduleName": "Face Processing",
+  "code": 200,
+  "command": "recognize",
+  "inferenceDevice": "CPU",
+  "analysisRoundTripMs": 2394
+}

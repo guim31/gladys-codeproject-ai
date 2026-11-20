@@ -1,0 +1,31 @@
+{
+  "message": "Found tie, person",
+  "count": 2,
+  "predictions": [
+    {
+      "confidence": 0.8162465691566467,
+      "label": "tie",
+      "x_min": 367,
+      "y_min": 448,
+      "x_max": 471,
+      "y_max": 834
+    },
+    {
+      "confidence": 0.8591221570968628,
+      "label": "person",
+      "x_min": 40,
+      "y_min": 22,
+      "x_max": 844,
+      "y_max": 1199
+    }
+  ],
+  "success": true,
+  "processMs": 939,
+  "inferenceMs": 939,
+  "moduleId": "ObjectDetectionYOLOv5-6.2",
+  "moduleName": "Object Detection (YOLOv5 6.2)",
+  "code": 200,
+  "command": "detect",
+  "inferenceDevice": "CPU",
+  "analysisRoundTripMs": 960
+}
